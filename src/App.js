@@ -5,7 +5,7 @@ import GithubIssuesSearchForm from './GithubIssuesSearchForm';
 const axiosGitHubGraphQL = axios.create({
   baseURL: 'https://api.github.com/graphql',
   headers: {
-    Authorization: `bearer ${process.env.GITHUB_TOKEN}`,
+    Authorization: `bearer ${process.env.REACT_APP_GITHUB_TOKEN}`,
   },
 });
 
