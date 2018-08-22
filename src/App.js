@@ -22,8 +22,13 @@ const GET_ISSUES_OF_REPOSITORY = `
       name
       url
       repository(name: $repository) {
+        id
         name
         url
+        stargazers {
+          totalCount
+        }
+        viewerHasStarred
         issues(first: 5, after: $cursor, states: [OPEN]) {
           edges {
             node {
@@ -51,6 +56,16 @@ const GET_ISSUES_OF_REPOSITORY = `
             hasNextPage
           }
         }
+      }
+    }
+  }
+`;
+
+const ADD_STAR = `
+  mutation ($repositoryId: ID!) {
+    addStar(input: { starrableId: $repositoryId }) {
+      starrable {
+        viewerHasStarred
       }
     }
   }
@@ -94,6 +109,34 @@ const resolveIssuesQuery = (queryResult, cursor) => (state) => {
   };
 };
 
+const addStarToRepository = (repositoryId) => {
+  return axiosGitHubGraphQL.post('', {
+    query: ADD_STAR,
+    variables: {
+      repositoryId,
+    },
+  });
+};
+
+const resolveAddStarMutation = (mutationResult) => (state) => {
+  const { viewerHasStarred } = mutationResult.data.data.addStar.starrable;
+  const { totalCount } = state.organization.repository.stargazers;
+
+  return {
+    ...state,
+    organization: {
+      ...state.organization,
+      repository: {
+        ...state.organization.repository,
+        viewerHasStarred,
+        stargazers: {
+          totalCount: totalCount + 1,
+        },
+      },
+    },
+  };
+};
+
 class App extends Component {
   state = {
     path: 'the-road-to-learn-react/the-road-to-learn-react',
@@ -126,6 +169,10 @@ class App extends Component {
     this.onFetchFromGitHub(this.state.path, endCursor);
   };
 
+  onStarRepository = (repositoryId, viewerHasStarred) => {
+    addStarToRepository(repositoryId).then((mutationResult) => this.setState(resolveAddStarMutation(mutationResult)));
+  };
+
   render() {
     const { path, organization, errors } = this.state;
     return (
@@ -137,7 +184,12 @@ class App extends Component {
         <hr />
 
         {organization ? (
-          <Organization organization={organization} errors={errors} onFetchMoreIssues={this.onFetchMoreIssues} />
+          <Organization
+            organization={organization}
+            errors={errors}
+            onFetchMoreIssues={this.onFetchMoreIssues}
+            onStarRepository={this.onStarRepository}
+          />
         ) : (
           <p>No information yet ...</p>
         )}
